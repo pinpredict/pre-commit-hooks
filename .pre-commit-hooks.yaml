@@ -1,0 +1,11 @@
+- id: csharpier-worktree-guard
+  name: csharpier (worktree-safe)
+  description: |
+    Wrap `dotnet csharpier format .` (or `check .` when CSHARPIER_MODE=check) so
+    that the silent no-op observed in git worktrees fails the hook instead of
+    falsely passing.
+  entry: hooks/csharpier-worktree-guard.sh
+  language: script
+  files: '\.cs$'
+  pass_filenames: false
+  require_serial: true
