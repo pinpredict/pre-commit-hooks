@@ -10,6 +10,7 @@ repos.
 | id | What | Triggers on |
 |---|---|---|
 | `csharpier-worktree-guard` | Run `dotnet csharpier format .` (or `check .` via `CSHARPIER_MODE=check`) but fail loudly if csharpier reports "0 files" while the repo actually contains tracked `.cs` files. Catches the silent no-op observed when csharpier runs from inside a git worktree. | `*.cs` |
+| `service-yaml-check` | Static checks for new/changed `.platform/services/<svc>.yaml` files: chart path resolves, ECR repo / PIA / GHA push-role exist in TF, networkPolicy ingress ports match the chart's declared health port. Catches the post-merge failure modes from [platform-gitops#544](https://github.com/pinpredict/platform-gitops/issues/544). | `.platform/services/*.yaml` |
 
 ## Using a hook
 
@@ -39,6 +40,29 @@ changes) via the `CSHARPIER_MODE` env var:
 
 Requires `dotnet csharpier` on `PATH` in the environment running pre-commit
 (same requirement as the plain csharpier hook).
+
+### `service-yaml-check`
+
+Stub. Currently the only fully-wired check is `chart-path` (resolves
+`repositories.chart` against the consumer repo's tree). The remaining
+checks emit a `!` warning citing platform-gitops#544 and will be filled
+in incrementally:
+
+- `image-repo` — verify the ECR repo exists in TF (or is added by a paired PR).
+- `pod-identity` — verify a Crossplane PIA / TF entry exists for the SA.
+- `push-role` — verify `xp-<svc>-gha-push` is declared in TF.
+- `netpol-ports` — cross-check ingress ports against the chart's defaults.
+
+Optional env vars (used by the not-yet-implemented checks):
+
+| var | purpose |
+|---|---|
+| `PLATFORM_GITOPS_DIR` | path to a `platform-gitops` checkout, for PIA / Crossplane lookups |
+| `PLATFORM_INFRA_DIR`  | path to a `platform-infrastructure` checkout, for TF role / ECR lookups |
+
+Wire into CI by adding to the consumer repo's `.pre-commit-config.yaml`
+and running `pre-commit run service-yaml-check --all-files` in CI, or by
+calling `hooks/service-yaml-check.py <paths>` directly.
 
 ## Releasing
 
