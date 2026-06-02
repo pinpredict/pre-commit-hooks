@@ -9,3 +9,15 @@
   files: '\.cs$'
   pass_filenames: false
   require_serial: true
+
+- id: service-yaml-check
+  name: .platform/services/*.yaml static checks
+  description: |
+    Static checks for new/changed .platform/services/<svc>.yaml files: verifies
+    chart path resolves in service-template, image repo/PIA/push-role exist in
+    TF, and networkPolicy ingress ports match the chart's declared health port.
+    Catches the failure modes from platform-gitops#544 before merge.
+  entry: hooks/service-yaml-check.py
+  language: python
+  additional_dependencies: ["pyyaml>=6"]
+  files: '^\.platform/services/[^/]+\.yaml$'
