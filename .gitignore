@@ -360,3 +360,6 @@ pyrightconfig.json
 # ─────────────────────────────────────────────────────────────────────────────
 *.swp
 *.swo
+
+# Claude Code per-machine local settings — never commit
+.claude/settings.local.json
