@@ -100,3 +100,18 @@ clear ownership story. Once a hook fits more than one repo — or once it
 encodes platform-wide policy (commit-message format, no raw-`terraform`,
 account-id hardcoding) — it belongs here so a fix flows everywhere via a
 version bump.
+
+## check-go-version-sync
+
+Fails when a `go.mod` `go` directive and the governing `.tool-versions`
+`golang` pin drift apart — they must match so local (asdf) and CI build the
+same toolchain. Each module's governing pin is the nearest ancestor
+`.tool-versions` with a `golang` line, so nested modules
+(`apps/<svc>/go.mod`) work; modules without a governing pin are skipped.
+
+```yaml
+- repo: https://github.com/pinpredict/pre-commit-hooks
+  rev: v0.2.0
+  hooks:
+    - id: check-go-version-sync
+```
