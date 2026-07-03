@@ -21,3 +21,17 @@
   language: python
   additional_dependencies: ["pyyaml>=6"]
   files: '^\.platform/services/[^/]+\.yaml$'
+
+- id: check-go-version-sync
+  name: check go version sync (go.mod ↔ .tool-versions)
+  description: |
+    Fails when a go.mod `go` directive and the governing .tool-versions
+    `golang` pin drift apart (they must match so local asdf and CI build the
+    same toolchain). The governing pin for each module is the nearest
+    ancestor .tool-versions with a golang line; modules without one are
+    skipped. Nested modules (apps/<svc>/go.mod) are supported. Replaces the
+    per-repo scripts/check-go-version-sync.sh.
+  entry: hooks/check-go-version-sync.sh
+  language: script
+  files: '(^|/)go\.mod$|(^|/)\.tool-versions$'
+  pass_filenames: false
