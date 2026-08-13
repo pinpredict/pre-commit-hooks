@@ -67,7 +67,14 @@ jobs:
           YAML
           printf 'name: oms\nversion: 0.1.0\n' > "$fixture/charts/oms/Chart.yaml"
           printf 'name: CI\non:\n  push:\njobs: {}\n' > "$fixture/.github/workflows/ci.yml"
-          printf 'name: oms\n' > "$fixture/.platform/services/oms.yaml"
+          # A well-formed spec: the point of this job is that each hook installs
+          # and runs, so the fixture must satisfy the checks the hook enforces.
+          cat > "$fixture/.platform/services/oms.yaml" <<'YAML'
+          name: oms
+          repositories:
+            chart: charts/oms
+            image: pinpredict/oms
+          YAML
 
           git -c init.defaultBranch=main init -q --template= "$fixture"
           git -C "$fixture" add -A
