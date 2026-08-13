@@ -24,6 +24,21 @@
   language: python
   files: '^\.platform/services/[^/]+\.yaml$'
 
+- id: stevedore-release-scope
+  name: stevedore release scope
+  description: |
+    Assert that onboarding or retiring a service does not silently widen the
+    image build contract. Checks that each named service is an image id in
+    .stevedore.yaml with a name-matching sibling chart, that docker-release and
+    chart-release receive the same `only:` selector, and that
+    change_detection.shared_paths carries the all-image contract signal without
+    listing paths every onboarding touches (Dockerfile, .dockerignore, *.sln).
+    Every assertion is opt-in via args, so repos missing a surface skip it.
+  entry: stevedore-release-scope
+  language: python
+  files: '^(\.stevedore\.yaml|\.github/workflows/ci\.yml|charts/[^/]+/Chart\.yaml)$'
+  pass_filenames: false
+
 - id: check-go-version-sync
   name: check go version sync (go.mod ↔ .tool-versions)
   description: |

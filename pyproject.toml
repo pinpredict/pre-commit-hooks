@@ -15,6 +15,7 @@ dependencies = ["PyYAML>=6"]
 # Without a build definition the install fails outright with "Directory '.' is
 # not installable" — see the `service-yaml-check` regression this replaced.
 [project.scripts]
+stevedore-release-scope = "pinpredict_hooks.stevedore_release_scope:main"
 service-yaml-check = "pinpredict_hooks.service_yaml_check:main"
 
 [tool.setuptools]
