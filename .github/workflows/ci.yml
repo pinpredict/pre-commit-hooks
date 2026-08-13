@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.13']
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+  # Regression guard for the failure this repo shipped for months: a
+  # `language: python` hook is only installable when pyproject.toml exposes it
+  # as a console script. `service-yaml-check` pointed at a repo-relative path,
+  # so every consumer got "Directory '.' is not installable" and the hook
+  # silently never ran anywhere. Nothing exercised the install path until now.
+  hook-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Every python hook resolves as a console script
+        run: |
+          set -euo pipefail
+          pip install .
+          stevedore-release-scope --help > /dev/null
+          service-yaml-check > /dev/null
+
+      - name: try-repo each hook against a fixture consumer
+        run: |
+          set -euo pipefail
+          fixture=$(mktemp -d)
+          mkdir -p "$fixture/charts/oms" "$fixture/.github/workflows" "$fixture/.platform/services"
+          cat > "$fixture/.stevedore.yaml" <<'YAML'
+          images:
+            - id: oms
+              project: PinPredict/PinPredict.csproj
+          change_detection:
+            shared_paths:
+              - "Directory.Build.props"
+          YAML
+          printf 'name: oms\nversion: 0.1.0\n' > "$fixture/charts/oms/Chart.yaml"
+          printf 'name: CI\non:\n  push:\njobs: {}\n' > "$fixture/.github/workflows/ci.yml"
+          printf 'name: oms\n' > "$fixture/.platform/services/oms.yaml"
+
+          git -c init.defaultBranch=main init -q --template= "$fixture"
+          git -C "$fixture" add -A
+
+          for hook in stevedore-release-scope service-yaml-check; do
+            echo "::group::try-repo $hook"
+            (cd "$fixture" && pre-commit try-repo "$GITHUB_WORKSPACE" "$hook" --all-files)
+            echo "::endgroup::"
+          done

@@ -1,0 +1,11 @@
+# Org baseline: block sequences indent under their parent key (the
+# Kubernetes/Helm convention), line-length left to reviewers.
+extends: default
+
+rules:
+  indentation:
+    spaces: 2
+    indent-sequences: true
+  line-length: disable
+  # .pre-commit-hooks.yaml is a top-level sequence with no parent key.
+  document-start: disable
