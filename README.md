@@ -12,6 +12,7 @@ repos.
 | `csharpier-worktree-guard` | Run `dotnet csharpier format .` (or `check .` via `CSHARPIER_MODE=check`) but fail loudly if csharpier reports "0 files" while the repo actually contains tracked `.cs` files. Catches the silent no-op observed when csharpier runs from inside a git worktree. | `*.cs` |
 | `service-yaml-check` | Static checks for new/changed `.platform/services/<svc>.yaml` files: chart path resolves, ECR repo / PIA / GHA push-role exist in TF, networkPolicy ingress ports match the chart's declared health port. Catches the post-merge failure modes from [platform-gitops#544](https://github.com/pinpredict/platform-gitops/issues/544). | `.platform/services/*.yaml` |
 | `stevedore-release-scope` | Assert that onboarding or retiring a service does not widen the shared image build contract: named services pair an `.stevedore.yaml` image id with a name-matching sibling chart, `docker-release` and `chart-release` receive the same `only:` selector, and `change_detection.shared_paths` carries the all-image signal without listing paths every onboarding touches. | `.stevedore.yaml`, `.github/workflows/ci.yml`, `charts/*/Chart.yaml` |
+| `no-production-newtonsoft` | Reject Newtonsoft.Json references in production .NET sources: a case-insensitive scan of every tracked source and build file, permitted only under the `--allow-prefix` paths (the approved test/benchmark projects) and on the one central `PackageVersion` line. Static half only — the transitive package-graph half needs `dotnet restore` and stays in the consumer's CI. | every commit (whole-tree scan) |
 | `check-go-version-sync` | Fails when a `go.mod` `go` directive and the governing `.tool-versions` `golang` pin drift apart. | `go.mod`, `.tool-versions` |
 
 ## Using a hook
@@ -152,6 +153,51 @@ variant frozen; the docker/chart consistency check runs either way.
 
 All violations are collected and reported in one run rather than failing on the
 first, so a single `pre-commit run` shows the whole picture.
+
+## `no-production-newtonsoft`
+
+Production .NET code should use `System.Text.Json`; a `Newtonsoft.Json`
+reference is allowed only in explicitly approved test and benchmark projects.
+Nothing is exempt by default — name every permitted prefix:
+
+```yaml
+- repo: https://github.com/pinpredict/pre-commit-hooks
+  rev: v0.4.0
+  hooks:
+    - id: no-production-newtonsoft
+      args:
+        - --allow-prefix=PinPredict.Tests/
+        - --allow-prefix=PinPredict.ParlayManager.Tests/
+        - --allow-prefix=PinPredict.Benchmarks/
+        - --central-version-file=Directory.Packages.props
+```
+
+| Flag | Purpose |
+|---|---|
+| `--allow-prefix PREFIX` (repeatable) | path prefix where a reference is permitted; nothing is allowed by default |
+| `--central-version-file PATH` | the one file permitted to declare the package's central `PackageVersion` |
+| `--token TOKEN` | case-insensitive token that marks a violation (default `newtonsoft`) |
+| `--package ID` | package id for the central-version exemption (default `<token>.Json`) |
+| `--source-glob GLOB` (repeatable) | git pathspecs to scan (default `*.cs *.csproj *.props *.targets`) |
+| `--root PATH` | repository root to scan (default the working directory) |
+
+**This is the static half of the policy only.** Catching Newtonsoft that arrives
+*transitively* needs `dotnet list package --include-transitive`, which needs
+`dotnet restore` and the solution's private feed credentials — far too slow and
+too credential-bound for a commit hook. Keep that guard in your own CI beside
+the SDK install; this hook covers the direct references, which are the ones a
+commit actually introduces.
+
+Two contract details worth knowing before you tune it:
+
+- **The scan is whole-tree, not staged-files.** Files come from `git ls-files`
+  and the hook runs `pass_filenames: false` / `always_run: true`. The policy is a
+  property of the repository, so a violation sitting in a file your commit never
+  touched must still fail — scoping to changed files would let a pre-existing
+  reference stay invisible forever.
+- **The central-version exemption is scoped to one named file.** A
+  `PackageVersion` element copied into an ordinary project file is still a
+  violation, so the exemption can't be used to smuggle a reference in.
 
 ## Why this repo exists
 
