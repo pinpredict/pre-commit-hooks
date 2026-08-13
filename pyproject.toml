@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pinpredict-pre-commit-hooks"
+version = "0.3.0"
+description = "Shared pre-commit hooks used across PinPredict repositories"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["PyYAML>=6"]
+
+# pre-commit's `language: python` installs this repo with pip and then runs the
+# hook's `entry` as a command, so every Python hook needs a console script here.
+# Without a build definition the install fails outright with "Directory '.' is
+# not installable" — see the `service-yaml-check` regression this replaced.
+[project.scripts]
+stevedore-release-scope = "pinpredict_hooks.stevedore_release_scope:main"
+service-yaml-check = "pinpredict_hooks.service_yaml_check:main"
+
+[tool.setuptools]
+packages = ["pinpredict_hooks"]

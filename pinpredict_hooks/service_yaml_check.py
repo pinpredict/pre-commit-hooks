@@ -154,7 +154,11 @@ def format_finding(path: Path, f: Finding) -> str:
     return f"  {icon} [{f.check}] {f.message}"
 
 
-def main(argv: list[str]) -> int:
+def main(argv: list[str] | None = None) -> int:
+    # Defaulted so setuptools can wire this as a console script (called with no
+    # arguments) while direct `python -m` / script invocation still works.
+    if argv is None:
+        argv = sys.argv[1:]
     files = [Path(a) for a in argv]
     if not files:
         sys.stderr.write("service-yaml-check: no files provided\n")
@@ -172,4 +176,4 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main())

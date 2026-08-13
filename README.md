@@ -11,6 +11,8 @@ repos.
 |---|---|---|
 | `csharpier-worktree-guard` | Run `dotnet csharpier format .` (or `check .` via `CSHARPIER_MODE=check`) but fail loudly if csharpier reports "0 files" while the repo actually contains tracked `.cs` files. Catches the silent no-op observed when csharpier runs from inside a git worktree. | `*.cs` |
 | `service-yaml-check` | Static checks for new/changed `.platform/services/<svc>.yaml` files: chart path resolves, ECR repo / PIA / GHA push-role exist in TF, networkPolicy ingress ports match the chart's declared health port. Catches the post-merge failure modes from [platform-gitops#544](https://github.com/pinpredict/platform-gitops/issues/544). | `.platform/services/*.yaml` |
+| `stevedore-release-scope` | Assert that onboarding or retiring a service does not widen the shared image build contract: named services pair an `.stevedore.yaml` image id with a name-matching sibling chart, `docker-release` and `chart-release` receive the same `only:` selector, and `change_detection.shared_paths` carries the all-image signal without listing paths every onboarding touches. | `.stevedore.yaml`, `.github/workflows/ci.yml`, `charts/*/Chart.yaml` |
+| `check-go-version-sync` | Fails when a `go.mod` `go` directive and the governing `.tool-versions` `golang` pin drift apart. | `go.mod`, `.tool-versions` |
 
 ## Using a hook
 
@@ -19,7 +21,7 @@ Reference this repo from a consumer's `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/pinpredict/pre-commit-hooks
-    rev: v0.1.0   # bump to upgrade
+    rev: v0.3.0   # bump to upgrade
     hooks:
       - id: csharpier-worktree-guard
 ```
@@ -81,16 +83,75 @@ and revertable. Tags follow semver:
 - **major** — breaking change to a hook's contract (entry, default mode,
   required env, etc.)
 
+## Repository layout
+
+| Path | What |
+|---|---|
+| `pinpredict_hooks/` | Python hooks, shipped as console scripts via `pyproject.toml` |
+| `hooks/` | Shell hooks (`language: script`), run directly from the repo |
+| `tests/` | Unit tests for the Python hooks — `python -m unittest discover -s tests` |
+
+**Python hooks must be console scripts.** pre-commit's `language: python`
+pip-installs this repo and then runs the hook's `entry` as a *command*, so a
+repo-relative path entry (`hooks/foo.py`) cannot work. Every Python hook needs
+an entry in `[project.scripts]` and an `entry:` matching that script name.
+Getting this wrong fails at install time for every consumer with
+`Directory '.' is not installable` — `service-yaml-check` shipped that way and
+was never runnable anywhere until it was fixed. The `hook-install` CI job now
+exercises the install path for exactly this reason.
+
+Shell hooks stay in `hooks/` with `language: script`; they need no packaging.
+
 ## Adding a new hook
 
-1. Drop the script in `hooks/<hook-id>.sh` (or another language — pre-commit
-   supports `language: script` / `python` / `golang` / etc.).
+1. Python: add a module under `pinpredict_hooks/` with a `main(argv=None) -> int`
+   and register it in `[project.scripts]`. Shell: drop the script in
+   `hooks/<hook-id>.sh` and use `language: script`.
 2. Add an entry to `.pre-commit-hooks.yaml` with `id`, `name`,
    `description`, `entry`, `language`, `files`, and any other relevant
    keys. See the [pre-commit docs](https://pre-commit.com/#creating-new-hooks)
    for the full schema.
-3. Update this README's "Available hooks" table.
-4. Open a PR. After merge, cut a tag.
+3. Add tests under `tests/`. Keep them file-based and free of `git`/subprocess
+   work so the suite stays fast enough to run as a hook itself.
+4. Update this README's "Available hooks" table.
+5. Open a PR. After merge, cut a tag.
+
+## `stevedore-release-scope`
+
+Every assertion is opt-in via args, so the hook fits repos that have only some
+of the surfaces — a repo with no `chart-release` job, or no
+`change_detection.shared_paths` key, skips those checks instead of failing.
+A repo with no `.stevedore.yaml` at all is a clean no-op.
+
+```yaml
+- repo: https://github.com/pinpredict/pre-commit-hooks
+  rev: v0.3.0
+  hooks:
+    - id: stevedore-release-scope
+      args:
+        - --service=nadex-rfqgw
+        - --require-shared-path=Directory.Build.props
+        - --forbid-shared-path=Dockerfile
+        - --forbid-shared-path=.dockerignore
+        - --forbid-shared-path=*.sln
+```
+
+| Flag | Purpose |
+|---|---|
+| `--service ID` (repeatable) | `ID` is an image id in `.stevedore.yaml` **and** `charts/ID/Chart.yaml` declares `name: ID` |
+| `--require-shared-path P` (repeatable) | `change_detection.shared_paths` must contain `P` |
+| `--forbid-shared-path P` (repeatable) | `change_detection.shared_paths` must **not** contain `P` |
+| `--expect-selector EXPR` | both release jobs pass exactly this `only:` expression |
+| `--docker-job` / `--chart-job` | job names to compare (default `docker-release` / `chart-release`) |
+| `--catalog` / `--workflow` / `--charts-dir` | override the default paths |
+
+Note that the manual-dispatch selector expression is **not** uniform across the
+org — most repos map `services: all` to an empty selector, while `trading` maps
+it to `all` on purpose. Pin `--expect-selector` only when a repo wants its own
+variant frozen; the docker/chart consistency check runs either way.
+
+All violations are collected and reported in one run rather than failing on the
+first, so a single `pre-commit run` shows the whole picture.
 
 ## Why this repo exists
 

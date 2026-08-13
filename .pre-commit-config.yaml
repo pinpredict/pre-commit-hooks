@@ -1,0 +1,31 @@
+# The hooks repo dogfoods its own gate. The unit tests run here too: a hook
+# whose tests only run in CI is exactly how `service-yaml-check` stayed broken.
+repos:
+  - repo: local
+    hooks:
+      - id: hook-unit-tests
+        name: hook unit tests
+        entry: python3 -m unittest discover -s tests
+        language: system
+        pass_filenames: false
+        files: ^(pinpredict_hooks/|tests/|pyproject\.toml$)
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: detect-private-key
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: ['-c', '.yamllint.yml']
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks

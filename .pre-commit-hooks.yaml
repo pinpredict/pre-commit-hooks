@@ -17,10 +17,27 @@
     chart path resolves in service-template, image repo/PIA/push-role exist in
     TF, and networkPolicy ingress ports match the chart's declared health port.
     Catches the failure modes from platform-gitops#544 before merge.
-  entry: hooks/service-yaml-check.py
+  # Console script from pyproject.toml. A path entry (hooks/service-yaml-check.py)
+  # cannot work here: `language: python` pip-installs this repo and runs `entry`
+  # as a command, so the hook must resolve on the venv PATH.
+  entry: service-yaml-check
   language: python
-  additional_dependencies: ["pyyaml>=6"]
   files: '^\.platform/services/[^/]+\.yaml$'
+
+- id: stevedore-release-scope
+  name: stevedore release scope
+  description: |
+    Assert that onboarding or retiring a service does not silently widen the
+    image build contract. Checks that each named service is an image id in
+    .stevedore.yaml with a name-matching sibling chart, that docker-release and
+    chart-release receive the same `only:` selector, and that
+    change_detection.shared_paths carries the all-image contract signal without
+    listing paths every onboarding touches (Dockerfile, .dockerignore, *.sln).
+    Every assertion is opt-in via args, so repos missing a surface skip it.
+  entry: stevedore-release-scope
+  language: python
+  files: '^(\.stevedore\.yaml|\.github/workflows/ci\.yml|charts/[^/]+/Chart\.yaml)$'
+  pass_filenames: false
 
 - id: check-go-version-sync
   name: check go version sync (go.mod ↔ .tool-versions)
