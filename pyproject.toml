@@ -17,6 +17,7 @@ dependencies = ["PyYAML>=6"]
 [project.scripts]
 stevedore-release-scope = "pinpredict_hooks.stevedore_release_scope:main"
 service-yaml-check = "pinpredict_hooks.service_yaml_check:main"
+no-production-newtonsoft = "pinpredict_hooks.no_production_newtonsoft:main"
 
 [tool.setuptools]
 packages = ["pinpredict_hooks"]

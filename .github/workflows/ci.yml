@@ -51,6 +51,7 @@ jobs:
           pip install .
           stevedore-release-scope --help > /dev/null
           service-yaml-check > /dev/null
+          no-production-newtonsoft --help > /dev/null
 
       - name: try-repo each hook against a fixture consumer
         run: |
@@ -76,10 +77,16 @@ jobs:
             image: pinpredict/oms
           YAML
 
+          # A tracked, clean production source so no-production-newtonsoft has
+          # something to actually scan — with zero matching files it would pass
+          # without exercising the git enumeration path.
+          mkdir -p "$fixture/Acme.Api"
+          printf 'using System.Text.Json;\n' > "$fixture/Acme.Api/Program.cs"
+
           git -c init.defaultBranch=main init -q --template= "$fixture"
           git -C "$fixture" add -A
 
-          for hook in stevedore-release-scope service-yaml-check; do
+          for hook in stevedore-release-scope service-yaml-check no-production-newtonsoft; do
             echo "::group::try-repo $hook"
             (cd "$fixture" && pre-commit try-repo "$GITHUB_WORKSPACE" "$hook" --all-files)
             echo "::endgroup::"

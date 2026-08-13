@@ -39,6 +39,22 @@
   files: '^(\.stevedore\.yaml|\.github/workflows/ci\.yml|charts/[^/]+/Chart\.yaml)$'
   pass_filenames: false
 
+- id: no-production-newtonsoft
+  name: reject production Newtonsoft references
+  description: |
+    Case-insensitive scan of every tracked .NET source and build file for a
+    Newtonsoft reference, allowed only under the path prefixes named by
+    --allow-prefix (the approved test and benchmark projects) and on the single
+    central PackageVersion line named by --central-version-file. This is the
+    static half of the policy; the transitive package-graph half needs `dotnet
+    restore` and private feed credentials, so it stays in the consumer's CI.
+    Enumerates files with `git ls-files`, not the staged set, so a violation in
+    a file this commit did not touch still fails.
+  entry: no-production-newtonsoft
+  language: python
+  pass_filenames: false
+  always_run: true
+
 - id: check-go-version-sync
   name: check go version sync (go.mod ↔ .tool-versions)
   description: |

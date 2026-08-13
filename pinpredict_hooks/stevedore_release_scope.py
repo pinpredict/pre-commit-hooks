@@ -29,26 +29,17 @@ single run, so one `pre-commit` invocation shows the whole picture.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 from typing import Any
 
-import yaml
+from pinpredict_hooks._common import MISSING, emit as _emit, load_yaml as _load_yaml
 
-MISSING = object()
+PROG = "stevedore-release-scope"
 
 
 def load_yaml(path: Path) -> Any:
-    """Parse `path`, returning MISSING when the file does not exist."""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return MISSING
-    try:
-        return yaml.safe_load(text)
-    except yaml.YAMLError as error:
-        raise SystemExit(f"stevedore-release-scope: {path} is not valid YAML: {error}")
+    return _load_yaml(path, PROG)
 
 
 def image_ids(catalog: Any) -> list[str]:
@@ -157,10 +148,7 @@ def check_selectors(
 
 
 def emit(failures: list[str]) -> None:
-    github = os.environ.get("GITHUB_ACTIONS") == "true"
-    for failure in failures:
-        prefix = "::error::" if github else "ERROR: "
-        print(f"{prefix}stevedore release scope: {failure}")
+    _emit(failures, "stevedore release scope")
 
 
 def build_parser() -> argparse.ArgumentParser:
