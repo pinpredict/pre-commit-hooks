@@ -22,15 +22,22 @@ Reference this repo from a consumer's `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/pinpredict/pre-commit-hooks
-    rev: v0.3.0   # bump to upgrade
+    rev: v0.4.0   # bump to upgrade
     hooks:
-      - id: csharpier-worktree-guard
+      - id: check-go-version-sync
 ```
+
+**Current release: `v0.4.0`.** Pin an explicit tag rather than a branch;
+`pre-commit autoupdate` rewrites the `rev:` to the latest tag when you want to
+move.
 
 Each hook's parameters (`files`, `args`, etc.) can be overridden in the
 consumer's config the same way as for any third-party hook repo.
 
 ### `csharpier-worktree-guard`
+
+No repo currently consumes this hook — it's available but unwired, so treat
+changes to it as unexercised in practice.
 
 Defaults to `format` mode. Switch to `check` (CI-friendly, no in-place
 changes) via the `CSHARPIER_MODE` env var:
@@ -64,17 +71,27 @@ Optional env vars (used by the not-yet-implemented checks):
 | `PLATFORM_INFRA_DIR`  | path to a `platform-infrastructure` checkout, for TF role / ECR lookups |
 
 Wire into CI by adding to the consumer repo's `.pre-commit-config.yaml`
-and running `pre-commit run service-yaml-check --all-files` in CI, or by
-calling `hooks/service-yaml-check.py <paths>` directly.
+and running `pre-commit run service-yaml-check --all-files` in CI. To invoke
+it outside pre-commit, install this repo and call the `service-yaml-check`
+console script (`pinpredict_hooks/service_yaml_check.py`) with the paths —
+there is no `hooks/service-yaml-check.py` to run directly, for the packaging
+reason spelled out under [Repository layout](#repository-layout).
 
 ## Releasing
 
-Cut a tag when a hook changes:
+Bump the version in `pyproject.toml` **in the same PR as the hook change**,
+then cut the matching tag:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+# 1. edit pyproject.toml:  version = "0.4.0"   (must match the tag)
+git tag v0.4.0
+git push origin v0.4.0
 ```
+
+The `pyproject.toml` version is what consumers actually pip-install under
+`language: python`, so a tag cut without the bump ships a package whose
+self-reported version disagrees with the `rev:` it came from — confusing to
+debug and invisible until someone checks. Keep the two in lockstep.
 
 Consumers don't move until they bump their `rev:` — keeps changes explicit
 and revertable. Tags follow semver:
@@ -91,6 +108,7 @@ and revertable. Tags follow semver:
 | `pinpredict_hooks/` | Python hooks, shipped as console scripts via `pyproject.toml` |
 | `hooks/` | Shell hooks (`language: script`), run directly from the repo |
 | `tests/` | Unit tests for the Python hooks — `python -m unittest discover -s tests` |
+| `.github/workflows/ci.yml` | CI: runs the unit tests plus the `hook-install` job that exercises the pre-commit install path |
 
 **Python hooks must be console scripts.** pre-commit's `language: python`
 pip-installs this repo and then runs the hook's `entry` as a *command*, so a
@@ -126,7 +144,7 @@ A repo with no `.stevedore.yaml` at all is a clean no-op.
 
 ```yaml
 - repo: https://github.com/pinpredict/pre-commit-hooks
-  rev: v0.3.0
+  rev: v0.4.0
   hooks:
     - id: stevedore-release-scope
       args:
@@ -218,7 +236,7 @@ same toolchain. Each module's governing pin is the nearest ancestor
 
 ```yaml
 - repo: https://github.com/pinpredict/pre-commit-hooks
-  rev: v0.2.0
+  rev: v0.4.0
   hooks:
     - id: check-go-version-sync
 ```
