@@ -18,6 +18,7 @@ dependencies = ["PyYAML>=6"]
 stevedore-release-scope = "pinpredict_hooks.stevedore_release_scope:main"
 service-yaml-check = "pinpredict_hooks.service_yaml_check:main"
 no-production-newtonsoft = "pinpredict_hooks.no_production_newtonsoft:main"
+k5s-stack-namespaces = "pinpredict_hooks.k5s_stack_namespaces:main"
 
 [tool.setuptools]
 packages = ["pinpredict_hooks"]

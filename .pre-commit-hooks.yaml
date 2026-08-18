@@ -68,3 +68,19 @@
   language: script
   files: '(^|/)go\.mod$|(^|/)\.tool-versions$'
   pass_filenames: false
+
+- id: k5s-stack-namespaces
+  name: k5s stack overlays declare unique namespaces
+  description: |
+    Fails when two sibling k5s stack overlays declare the same `namespace:`. A
+    new lane is usually a copy of an existing one, and a namespace left
+    unchanged makes `k5s up` server-side-apply over the other lane's objects
+    with no error — Ready pods running a blend of two lanes' configuration,
+    which for a perf rig means every number it reports is measured against a
+    universe nobody described. Asserts uniqueness only, never a naming
+    convention; overlays that declare no namespace (inheriting the base stack's)
+    are skipped. Compares every stack in the changed files' directories, not
+    just the changed set, since a collision is a property of the whole set.
+  entry: k5s-stack-namespaces
+  language: python
+  files: '(^|/)(k5s\.yaml|komp\.yaml|overlays/.*\.ya?ml)$'
