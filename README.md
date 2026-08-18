@@ -14,6 +14,7 @@ repos.
 | `stevedore-release-scope` | Assert that onboarding or retiring a service does not widen the shared image build contract: named services pair an `.stevedore.yaml` image id with a name-matching sibling chart, `docker-release` and `chart-release` receive the same `only:` selector, and `change_detection.shared_paths` carries the all-image signal without listing paths every onboarding touches. | `.stevedore.yaml`, `.github/workflows/ci.yml`, `charts/*/Chart.yaml` |
 | `no-production-newtonsoft` | Reject Newtonsoft.Json references in production .NET sources: a case-insensitive scan of every tracked source and build file, permitted only under the `--allow-prefix` paths (the approved test/benchmark projects) and on the one central `PackageVersion` line. Static half only — the transitive package-graph half needs `dotnet restore` and stays in the consumer's CI. | every commit (whole-tree scan) |
 | `check-go-version-sync` | Fails when a `go.mod` `go` directive and the governing `.tool-versions` `golang` pin drift apart. | `go.mod`, `.tool-versions` |
+| `k5s-stack-namespaces` | Fails when two sibling k5s stack overlays declare the same `namespace:`. A new lane is usually a copy of an existing one, and a namespace left unchanged makes `k5s up` server-side-apply over the other lane's objects with no error — Ready pods running a blend of two lanes' config. Asserts uniqueness only, never a naming convention. | `k5s.yaml`, `komp.yaml`, `overlays/*.yaml` |
 
 ## Using a hook
 
@@ -22,12 +23,12 @@ Reference this repo from a consumer's `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/pinpredict/pre-commit-hooks
-    rev: v0.4.0   # bump to upgrade
+    rev: v0.5.0   # bump to upgrade
     hooks:
       - id: check-go-version-sync
 ```
 
-**Current release: `v0.4.0`.** Pin an explicit tag rather than a branch;
+**Current release: `v0.5.0`.** Pin an explicit tag rather than a branch;
 `pre-commit autoupdate` rewrites the `rev:` to the latest tag when you want to
 move.
 
@@ -76,6 +77,40 @@ it outside pre-commit, install this repo and call the `service-yaml-check`
 console script (`pinpredict_hooks/service_yaml_check.py`) with the paths —
 there is no `hooks/service-yaml-check.py` to run directly, for the packaging
 reason spelled out under [Repository layout](#repository-layout).
+
+### `k5s-stack-namespaces`
+
+```yaml
+  - repo: https://github.com/pinpredict/pre-commit-hooks
+    rev: v0.5.0
+    hooks:
+      - id: k5s-stack-namespaces
+```
+
+No arguments. A k5s rig is a base stack plus lane overlays
+(`k5s up -f overlays/perf-10x.yaml`), and a lane targeting a shared cluster
+declares its own `namespace:` so bringing one lane up cannot converge the rig
+another lane is standing in.
+
+What it catches is quiet: a new lane starts as a copy of an existing one, and if
+its `namespace:` is not changed with everything else, `k5s up` server-side-applies
+over the old lane's objects. Nothing errors — the pods are Ready and the rig is
+running a blend of two lanes' configuration. For a perf rig that means every
+number it reports was measured against a universe nobody described.
+
+Two deliberate choices:
+
+- **Uniqueness only, never a naming convention.** A repo's lane names are its own
+  business; pinning a pattern like `perf-rig-<lane>` would be one repo's
+  convention wearing an org hook's clothes.
+- **Files are read as written, not through k5s's `extends:` resolution.** Two
+  lanes that both *restate* a shared namespace is the collision; resolving first
+  would hide it. An overlay that declares no namespace at all — inheriting the
+  base stack's, the normal shape for a lane that only adjusts load — is skipped.
+
+It compares every stack in the changed files' **directories**, not just the
+changed set: a collision is a property of the whole set, and the lane that already
+owned the namespace is usually not part of the commit that collides with it.
 
 ## Releasing
 
@@ -144,7 +179,7 @@ A repo with no `.stevedore.yaml` at all is a clean no-op.
 
 ```yaml
 - repo: https://github.com/pinpredict/pre-commit-hooks
-  rev: v0.4.0
+  rev: v0.5.0
   hooks:
     - id: stevedore-release-scope
       args:
@@ -180,7 +215,7 @@ Nothing is exempt by default — name every permitted prefix:
 
 ```yaml
 - repo: https://github.com/pinpredict/pre-commit-hooks
-  rev: v0.4.0
+  rev: v0.5.0
   hooks:
     - id: no-production-newtonsoft
       args:
@@ -236,7 +271,7 @@ same toolchain. Each module's governing pin is the nearest ancestor
 
 ```yaml
 - repo: https://github.com/pinpredict/pre-commit-hooks
-  rev: v0.4.0
+  rev: v0.5.0
   hooks:
     - id: check-go-version-sync
 ```

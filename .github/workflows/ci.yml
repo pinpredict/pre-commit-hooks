@@ -52,6 +52,7 @@ jobs:
           stevedore-release-scope --help > /dev/null
           service-yaml-check > /dev/null
           no-production-newtonsoft --help > /dev/null
+          k5s-stack-namespaces > /dev/null
 
       - name: try-repo each hook against a fixture consumer
         run: |
@@ -77,6 +78,14 @@ jobs:
             image: pinpredict/oms
           YAML
 
+          # Sibling k5s lane overlays with distinct namespaces, so
+          # k5s-stack-namespaces exercises its grouping path rather than
+          # passing on an empty file set.
+          mkdir -p "$fixture/overlays"
+          printf 'namespace: rig-base\n' > "$fixture/k5s.yaml"
+          printf 'namespace: rig-5x\n' > "$fixture/overlays/perf-5x.yaml"
+          printf 'namespace: rig-10x\n' > "$fixture/overlays/perf-10x.yaml"
+
           # A tracked, clean production source so no-production-newtonsoft has
           # something to actually scan — with zero matching files it would pass
           # without exercising the git enumeration path.
@@ -86,7 +95,7 @@ jobs:
           git -c init.defaultBranch=main init -q --template= "$fixture"
           git -C "$fixture" add -A
 
-          for hook in stevedore-release-scope service-yaml-check no-production-newtonsoft; do
+          for hook in stevedore-release-scope service-yaml-check no-production-newtonsoft k5s-stack-namespaces; do
             echo "::group::try-repo $hook"
             (cd "$fixture" && pre-commit try-repo "$GITHUB_WORKSPACE" "$hook" --all-files)
             echo "::endgroup::"
