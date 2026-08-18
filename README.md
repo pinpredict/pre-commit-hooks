@@ -23,12 +23,12 @@ Reference this repo from a consumer's `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/pinpredict/pre-commit-hooks
-    rev: v0.4.0   # bump to upgrade
+    rev: v0.5.0   # bump to upgrade
     hooks:
       - id: check-go-version-sync
 ```
 
-**Current release: `v0.4.0`.** Pin an explicit tag rather than a branch;
+**Current release: `v0.5.0`.** Pin an explicit tag rather than a branch;
 `pre-commit autoupdate` rewrites the `rev:` to the latest tag when you want to
 move.
 
@@ -179,7 +179,7 @@ A repo with no `.stevedore.yaml` at all is a clean no-op.
 
 ```yaml
 - repo: https://github.com/pinpredict/pre-commit-hooks
-  rev: v0.4.0
+  rev: v0.5.0
   hooks:
     - id: stevedore-release-scope
       args:
@@ -215,7 +215,7 @@ Nothing is exempt by default — name every permitted prefix:
 
 ```yaml
 - repo: https://github.com/pinpredict/pre-commit-hooks
-  rev: v0.4.0
+  rev: v0.5.0
   hooks:
     - id: no-production-newtonsoft
       args:
@@ -271,7 +271,7 @@ same toolchain. Each module's governing pin is the nearest ancestor
 
 ```yaml
 - repo: https://github.com/pinpredict/pre-commit-hooks
-  rev: v0.4.0
+  rev: v0.5.0
   hooks:
     - id: check-go-version-sync
 ```
