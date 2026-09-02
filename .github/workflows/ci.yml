@@ -7,6 +7,17 @@ on:
     branches: [main]
 
 jobs:
+  pre-commit:
+    # Runs on PRs (the actual advisory check) and on push to main
+    # (seeds ~/.cache/pre-commit into the default-branch cache scope
+    # so PR branches can restore from it — see
+    # pinpredict/.github/.github/workflows/pre-commit-advisory.yml).
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: pinpredict/.github/.github/workflows/pre-commit-advisory.yml@main
+
   tests:
     runs-on: ubuntu-latest
     strategy:
