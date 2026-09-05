@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pinpredict-pre-commit-hooks"
-version = "0.5.0"
+version = "0.6.0"
 description = "Shared pre-commit hooks used across PinPredict repositories"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -19,6 +19,7 @@ stevedore-release-scope = "pinpredict_hooks.stevedore_release_scope:main"
 service-yaml-check = "pinpredict_hooks.service_yaml_check:main"
 no-production-newtonsoft = "pinpredict_hooks.no_production_newtonsoft:main"
 k5s-stack-namespaces = "pinpredict_hooks.k5s_stack_namespaces:main"
+alert-annotation-shape = "pinpredict_hooks.alert_annotation_shape:main"
 
 [tool.setuptools]
 packages = ["pinpredict_hooks"]

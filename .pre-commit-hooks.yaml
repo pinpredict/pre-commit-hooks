@@ -84,3 +84,21 @@
   entry: k5s-stack-namespaces
   language: python
   files: '(^|/)(k5s\.yaml|komp\.yaml|overlays/.*\.ya?ml)$'
+
+- id: alert-annotation-shape
+  name: alert annotation shape (title / Slack blockquote / folded description)
+  description: |
+    Guard the Slack-rendering traps in PrometheusRule annotations: a missing or
+    interpolated `title` (Alertmanager silently falls back to the raw alertname
+    once two alerts group), an over-long title (truncated in previews), a
+    literal-block `description` (Slack keeps the newlines, so the card arrives
+    as ragged half-lines), a paragraph starting with `>` (parsed as a
+    blockquote — the char is eaten and the lines are joined), and an elapsed
+    time rendered as raw seconds instead of `humanizeDuration`. All are invalid
+    only in Slack: the YAML parses and the chart renders. Scans the whole
+    `--root` (default `charts`) rather than the staged files, since an untouched
+    rule is just as broken. Each check is disablable with `--skip <id>`.
+  entry: alert-annotation-shape
+  language: python
+  files: '^charts/.*\.ya?ml$'
+  pass_filenames: false

@@ -15,6 +15,7 @@ repos.
 | `no-production-newtonsoft` | Reject Newtonsoft.Json references in production .NET sources: a case-insensitive scan of every tracked source and build file, permitted only under the `--allow-prefix` paths (the approved test/benchmark projects) and on the one central `PackageVersion` line. Static half only — the transitive package-graph half needs `dotnet restore` and stays in the consumer's CI. | every commit (whole-tree scan) |
 | `check-go-version-sync` | Fails when a `go.mod` `go` directive and the governing `.tool-versions` `golang` pin drift apart. | `go.mod`, `.tool-versions` |
 | `k5s-stack-namespaces` | Fails when two sibling k5s stack overlays declare the same `namespace:`. A new lane is usually a copy of an existing one, and a namespace left unchanged makes `k5s up` server-side-apply over the other lane's objects with no error — Ready pods running a blend of two lanes' config. Asserts uniqueness only, never a naming convention. | `k5s.yaml`, `komp.yaml`, `overlays/*.yaml` |
+| `alert-annotation-shape` | Guard the Slack-rendering traps in PrometheusRule annotations: a missing or interpolated `title` (Alertmanager falls back to the raw alertname once two alerts group), an over-long title, a literal-block `description` (Slack keeps the newlines, so the card arrives as ragged half-lines), a paragraph starting with `>` (parsed as a blockquote), and an elapsed time rendered as raw seconds. Every one is valid YAML that renders fine and fails only in Slack. Each check is disablable with `--skip <id>`. | `charts/**/*.yaml` |
 
 ## Using a hook
 
@@ -28,7 +29,7 @@ repos:
       - id: check-go-version-sync
 ```
 
-**Current release: `v0.5.0`.** Pin an explicit tag rather than a branch;
+**Current release: `v0.6.0`.** Pin an explicit tag rather than a branch;
 `pre-commit autoupdate` rewrites the `rev:` to the latest tag when you want to
 move.
 
@@ -111,6 +112,50 @@ Two deliberate choices:
 It compares every stack in the changed files' **directories**, not just the
 changed set: a collision is a property of the whole set, and the lane that already
 owned the namespace is usually not part of the commit that collides with it.
+
+### `alert-annotation-shape`
+
+```yaml
+  - repo: https://github.com/pinpredict/pre-commit-hooks
+    rev: v0.6.0
+    hooks:
+      - id: alert-annotation-shape
+```
+
+A PrometheusRule's `title` and `description` are not documentation — they are
+the Slack card a responder reads at 3am. Every trap this catches is invisible in
+review: the YAML parses, the chart renders, `promtool` is happy, and the damage
+appears only once the alert fires.
+
+The two that cost the most:
+
+- **An interpolated `title`.** Alertmanager renders `.CommonAnnotations.title`
+  only when every alert in the group has an identical one, and grouping is by
+  alertname — so a title carrying `$labels.venue` silently reverts to the raw
+  alertname the moment two instances group. It works in every test and fails
+  under load, which is when the card matters most. Per-instance detail belongs
+  in `summary`.
+- **A literal-block `description`.** Slack preserves newlines, so `|` reproduces
+  the source hand-wrapping and the card arrives as a column of ragged
+  half-lines. Use `>-` and let Slack reflow to the reader's window. Folding has
+  its own rule worth knowing: ONE blank line between paragraphs collapses to a
+  single newline, so a visible blank line needs TWO.
+
+Two deliberate choices:
+
+- **It scans text, not parsed YAML.** These are Helm templates, so `{{ ... }}`
+  control flow makes most of them invalid YAML — parsing first would skip
+  exactly the files that carry the alerts.
+- **It scans the whole `--root` (default `charts`), not the staged files.** A
+  rule this commit did not touch is just as broken on the card.
+
+`--skip <id>` disables one check (`missing-title`, `interpolated-title`,
+`title-length`, `literal-description`, `blockquote-line`, `raw-seconds`), and
+`--max-title` moves the 60-char preview limit. The skips exist for adoption: a
+repo with a standing backlog can take the other five checks now rather than
+waiting until it is clean, since an adopted hook minus one check still guards
+five things and an unadopted hook guards nothing. Prefer burning the backlog
+down and removing the skip.
 
 ## Releasing
 

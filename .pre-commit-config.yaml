@@ -6,7 +6,14 @@ repos:
       - id: hook-unit-tests
         name: hook unit tests
         entry: python3 -m unittest discover -s tests
-        language: system
+        # `language: python` rather than `system`: the hooks import PyYAML via
+        # _common, and a bare runner has no site-packages to find it in. Under
+        # `system` this passed on every laptop and failed in CI with
+        # `ModuleNotFoundError: No module named 'yaml'` — latent since the suite
+        # was written, and first exercised when #9 became the first PR to change
+        # these paths after the advisory job landed in #8.
+        language: python
+        additional_dependencies: ["PyYAML>=6"]
         pass_filenames: false
         files: ^(pinpredict_hooks/|tests/|pyproject\.toml$)
 
