@@ -320,3 +320,56 @@ same toolchain. Each module's governing pin is the nearest ancestor
   hooks:
     - id: check-go-version-sync
 ```
+
+## `k5s-fragment-parity`
+
+A repo publishing a `kind: Fragment` almost always runs that service itself too,
+so there are two definitions of one thing in one repo — and nothing makes them
+agree.
+
+They drift immediately. magellan published a fragment pinning all seven collector
+intervals to 60s; six minutes later a separate PR removed exactly those overrides
+from the repo's own rig, for a measured reason (magellan#651, #652). Both landed
+green, and the fragment then told every consumer to do the thing the owner had
+just decided against. It was caught by a human reading both files side by side
+while preparing an unrelated adoption.
+
+That is the same drift fragments exist to end — except it is *inside* the
+publishing repo, where the fragment registry itself cannot help.
+
+```yaml
+- repo: https://github.com/pinpredict/pre-commit-hooks
+  rev: <sha>
+  hooks:
+    - id: k5s-fragment-parity
+      args:
+        # the fragment calls it `magellan`; this repo's own rig calls it `magellan-api`
+        - --service=magellan=magellan-api
+        # this repo defines it in two lanes, so name the one the fragment mirrors
+        - --against=overlays/magellan.yaml
+```
+
+What it compares, per fragment service:
+
+- **shared env keys** — a key both sides set must set it to the same value;
+- **one-sided keys** — a key only one side sets is reported, which is exactly how
+  the interval drift looked.
+
+What it deliberately does not compare:
+
+- **values the fragment parameterizes.** `${input:dbHost}` is not a claim about
+  the value, it is a statement that the caller decides, so it cannot drift.
+- **owner-vs-consumer differences.** The publishing repo builds from source while
+  consumers pull a released image, and placement/sizing belongs to whoever stands
+  the rig up — `build`, `image`, `tag`, `namespace`, `replicas`, `resources`,
+  `expose`, `readyTimeout`, `dependsOn`, `scheduling`, `localPorts` are ignored by
+  default. Extend with `--ignore` rather than weakening the value comparison.
+
+**Ambiguity is an error, not a guess.** If the service is defined in several of
+the repo's stack files the hook refuses and names them, because a lane's whole job
+is to override its base and comparing against the wrong one reports deliberate
+overrides as drift. The first run of this hook against magellan did exactly that —
+it picked `overlays/magellan-go.yaml`, a different lane, because `-go` sorts
+first. Use `--against`.
+
+A repo that publishes no fragment is a clean no-op.

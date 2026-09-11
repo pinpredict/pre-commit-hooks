@@ -20,6 +20,7 @@ service-yaml-check = "pinpredict_hooks.service_yaml_check:main"
 no-production-newtonsoft = "pinpredict_hooks.no_production_newtonsoft:main"
 k5s-stack-namespaces = "pinpredict_hooks.k5s_stack_namespaces:main"
 alert-annotation-shape = "pinpredict_hooks.alert_annotation_shape:main"
+k5s-fragment-parity = "pinpredict_hooks.k5s_fragment_parity:main"
 
 [tool.setuptools]
 packages = ["pinpredict_hooks"]
