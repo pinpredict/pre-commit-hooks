@@ -102,3 +102,23 @@
   language: python
   files: '^charts/.*\.ya?ml$'
   pass_filenames: false
+
+- id: k5s-fragment-parity
+  name: k5s fragment agrees with its own repo
+  description: |
+    A repo publishing a `kind: Fragment` almost always runs that service itself
+    too, so there are two definitions of one thing and nothing makes them agree.
+    They drift immediately: magellan published a fragment pinning seven collector
+    intervals to 60s while a separate PR removed exactly those overrides from the
+    repo's own rig six minutes later — both green, and the fragment then told
+    every consumer to do what the owner had just decided against.
+
+    Compares each fragment service against the same service in the repo's own
+    stack files: a key both set must agree, and a key only one sets is reported.
+    Values the fragment PARAMETERIZES (${input:...}) are skipped — those are not
+    claims about the value, so they cannot drift. Owner-vs-consumer differences
+    (build/image/tag) and placement/sizing are ignored by default.
+  entry: k5s-fragment-parity
+  language: python
+  files: '^(k5s/fragment\.yaml|k5s/fragments/.*\.ya?ml|k5s\.yaml|overlays/.*\.ya?ml)$'
+  pass_filenames: false
