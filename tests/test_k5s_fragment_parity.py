@@ -150,3 +150,28 @@ class AmbiguousTargetTest(K5sFragmentParityTest):
             "services:\n  magellan:\n    env:\n      MAG_DB_NAME: magellan\n", encoding="utf-8"
         )
         self.assertEqual(main(["--against", "overlays/magellan.yaml"]), 0)
+
+
+class ScalarRenderingTest(K5sFragmentParityTest):
+    """YAML scalars that reach the environment identically are not drift."""
+
+    def test_yaml_bool_equals_quoted_string(self) -> None:
+        """trading's fragment says 'false'; its overlay says false. Same setting."""
+        self.fragment("      Logging__FileSink__Enabled: 'false'\n")
+        self.overlay("      Logging__FileSink__Enabled: false\n")
+        self.assertEqual(main([]), 0)
+
+    def test_yaml_bool_true_equals_quoted(self) -> None:
+        self.fragment("      Flag: 'true'\n")
+        self.overlay("      Flag: true\n")
+        self.assertEqual(main([]), 0)
+
+    def test_int_equals_quoted_int(self) -> None:
+        self.fragment("      MAG_DB_PORT: '5432'\n")
+        self.overlay("      MAG_DB_PORT: 5432\n")
+        self.assertEqual(main([]), 0)
+
+    def test_genuinely_different_values_still_fail(self) -> None:
+        self.fragment("      Flag: 'true'\n")
+        self.overlay("      Flag: false\n")
+        self.assertEqual(main([]), 1)

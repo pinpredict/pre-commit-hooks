@@ -113,6 +113,20 @@ def _parameterized(value: Any) -> bool:
     return INPUT_TOKEN in str(value)
 
 
+def _as_env(value: Any) -> str:
+    """Render a YAML scalar the way it reaches a container's environment.
+
+    Env values are strings by schema, so `Enabled: false` and `Enabled: 'false'`
+    are the same setting written two ways — but Python's str() renders the bool
+    as 'False', so a naive comparison reports them as drift. trading's own
+    fragment and overlay differ exactly that way, and it was the first thing this
+    hook said about them.
+    """
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
 def _find_own(stacks: dict[Path, Any], want: str) -> list[Path]:
     """Every stack file in the repo that defines `want`.
 
@@ -169,7 +183,7 @@ def check(
             for key in sorted(set(frag_env) & set(own_env)):
                 if key in ignore or _parameterized(frag_env[key]):
                     continue
-                if str(frag_env[key]) != str(own_env[key]):
+                if _as_env(frag_env[key]) != _as_env(own_env[key]):
                     failures.append(
                         f"{where}: env {key} disagrees — "
                         f"fragment {frag_env[key]!r}, repo {own_env[key]!r}"
