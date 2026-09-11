@@ -120,5 +120,16 @@
     (build/image/tag) and placement/sizing are ignored by default.
   entry: k5s-fragment-parity
   language: python
-  files: '^(k5s/fragment\.yaml|k5s/fragments/.*\.ya?ml|k5s\.yaml|overlays/.*\.ya?ml)$'
   pass_filenames: false
+  # ALWAYS, not gated on `files:`. The invariant is a property of the REPO — does
+  # the published fragment agree with how this repo runs the same service — not
+  # of whichever file a commit happens to touch. Gated on `files:` the check is
+  # skipped by every commit that does not edit the fragment or an overlay, which
+  # includes pre-existing drift and, absurdly, the commit that ADOPTS the hook:
+  # magellan#653 added it and went green with
+  # `k5s fragment agrees with its own repo...Skipped`, over a repo that was
+  # drifting the whole time.
+  #
+  # It is cheap to run unconditionally: a repo publishing no fragment returns
+  # immediately without reading anything else.
+  always_run: true
