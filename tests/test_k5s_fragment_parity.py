@@ -175,3 +175,87 @@ class ScalarRenderingTest(K5sFragmentParityTest):
         self.fragment("      Flag: 'true'\n")
         self.overlay("      Flag: false\n")
         self.assertEqual(main([]), 1)
+
+
+class SidecarTest(K5sFragmentParityTest):
+    """Sidecar containers are compared too, and per-container values are checked.
+
+    The gap these close cost two broken publishes: understudy's fragment gave
+    seven sidecars one shared `${input:understudyPlugins}` where the repo gave
+    each its own plugin, so every container came up as `universe` and the five
+    that lost the race to bind 8090 never went Ready (understudy#401).
+    """
+
+    def frag_sidecars(self, body: str) -> None:
+        (self.root / "k5s" / "fragment.yaml").write_text(
+            FRAGMENT_HEAD + "services:\n  magellan:\n" + body, encoding="utf-8")
+
+    def overlay_sidecars(self, body: str) -> None:
+        (self.root / "overlays" / "magellan.yaml").write_text(
+            "services:\n  magellan:\n" + body, encoding="utf-8")
+
+    # ── the regression this exists for ───────────────────────────────────────
+
+    def test_one_input_for_a_per_container_value_fails(self) -> None:
+        self.frag_sidecars(
+            "    env:\n      PLUGINS: ${input:plugins}\n"
+            "    sidecars:\n"
+            "      - name: a\n        env:\n          PLUGINS: ${input:plugins}\n"
+            "      - name: b\n        env:\n          PLUGINS: ${input:plugins}\n")
+        self.overlay_sidecars(
+            "    env:\n      PLUGINS: universe\n"
+            "    sidecars:\n"
+            "      - name: a\n        env:\n          PLUGINS: alpha\n"
+            "      - name: b\n        env:\n          PLUGINS: beta\n")
+        self.assertEqual(main([]), 1, "one input cannot cover three different values")
+
+    def test_one_input_is_fine_when_the_repo_agrees(self) -> None:
+        """Sharing an input is correct when every container really does agree."""
+        self.frag_sidecars(
+            "    env:\n      REGION: ${input:region}\n"
+            "    sidecars:\n"
+            "      - name: a\n        env:\n          REGION: ${input:region}\n"
+            "      - name: b\n        env:\n          REGION: ${input:region}\n")
+        self.overlay_sidecars(
+            "    env:\n      REGION: us-east-1\n"
+            "    sidecars:\n"
+            "      - name: a\n        env:\n          REGION: us-east-1\n"
+            "      - name: b\n        env:\n          REGION: us-east-1\n")
+        self.assertEqual(main([]), 0)
+
+    def test_a_single_container_using_an_input_is_fine(self) -> None:
+        self.frag_sidecars(
+            "    env:\n      PLUGINS: ${input:plugins}\n"
+            "    sidecars:\n      - name: a\n        env:\n          PLUGINS: alpha\n")
+        self.overlay_sidecars(
+            "    env:\n      PLUGINS: universe\n"
+            "    sidecars:\n      - name: a\n        env:\n          PLUGINS: alpha\n")
+        self.assertEqual(main([]), 0)
+
+    # ── sidecar values are compared like the service's ───────────────────────
+
+    def test_sidecar_env_disagreement_fails(self) -> None:
+        self.frag_sidecars(
+            "    env:\n      A: '1'\n"
+            "    sidecars:\n      - name: etl\n        env:\n          MODE: fast\n")
+        self.overlay_sidecars(
+            "    env:\n      A: '1'\n"
+            "    sidecars:\n      - name: etl\n        env:\n          MODE: slow\n")
+        self.assertEqual(main([]), 1)
+
+    def test_sidecar_env_agreement_passes(self) -> None:
+        self.frag_sidecars(
+            "    env:\n      A: '1'\n"
+            "    sidecars:\n      - name: etl\n        env:\n          MODE: fast\n")
+        self.overlay_sidecars(
+            "    env:\n      A: '1'\n"
+            "    sidecars:\n      - name: etl\n        env:\n          MODE: fast\n")
+        self.assertEqual(main([]), 0)
+
+    def test_a_sidecar_only_the_fragment_has_is_not_compared(self) -> None:
+        """A consumer dropping a sidecar with `remove: true` is legitimate."""
+        self.frag_sidecars(
+            "    env:\n      A: '1'\n"
+            "    sidecars:\n      - name: etl\n        env:\n          MODE: fast\n")
+        self.overlay_sidecars("    env:\n      A: '1'\n")
+        self.assertEqual(main([]), 0)

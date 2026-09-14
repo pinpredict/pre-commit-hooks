@@ -352,8 +352,10 @@ publishing repo, where the fragment registry itself cannot help.
 What it compares, per fragment service:
 
 - **shared env keys** — a key both sides set must set it to the same value;
+- **sidecar env** — the same comparison, per sidecar, matched by name;
 - **one-sided keys** — a key only one side sets is reported, which is exactly how
-  the interval drift looked.
+  the interval drift looked;
+- **per-container values collapsed into one input** — see below.
 
 What it deliberately does not compare:
 
@@ -364,6 +366,19 @@ What it deliberately does not compare:
   the rig up — `build`, `image`, `tag`, `namespace`, `replicas`, `resources`,
   `expose`, `readyTimeout`, `dependsOn`, `scheduling`, `localPorts` are ignored by
   default. Extend with `--ignore` rather than weakening the value comparison.
+
+**A per-container value cannot be a single input.** If a fragment uses one
+`${input:…}` for a key across several containers while the repo gives those
+containers different values, that is reported — and it is NOT the same check as
+comparing values, because the fragment's side is `${input:…}`, which the value
+comparison deliberately skips as un-driftable.
+
+understudy shipped exactly that: seven sidecars each running one plugin, all
+collapsed onto `UNDERSTUDY_PLUGINS: ${input:understudyPlugins}`. Every container
+came up as `universe`, the five that lost the race to bind port 8090 never went
+Ready, and nothing crashed or restarted — it read as a slow boot
+(understudy#401). Verified: this check fires on that fragment and is silent on
+the fixed one.
 
 **Ambiguity is an error, not a guess.** If the service is defined in several of
 the repo's stack files the hook refuses and names them, because a lane's whole job
