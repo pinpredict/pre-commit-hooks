@@ -372,4 +372,11 @@ overrides as drift. The first run of this hook against magellan did exactly that
 it picked `overlays/magellan-go.yaml`, a different lane, because `-go` sorts
 first. Use `--against`.
 
+It runs on **every** commit, not only when a fragment or overlay changes: the
+invariant is a property of the repo, not of the file a commit happens to touch.
+Gated on `files:` the check is skipped by any commit that edits neither — which
+includes pre-existing drift and, absurdly, the commit that adopts the hook.
+magellan#653 added it and went green with `k5s fragment agrees with its own
+repo...Skipped`, over a repo that was drifting the whole time.
+
 A repo that publishes no fragment is a clean no-op.
