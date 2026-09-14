@@ -109,6 +109,29 @@ def _env(service: Any) -> dict[str, Any]:
     return {}
 
 
+def _containers(service: Any) -> dict[str, Any]:
+    """Every container of a service, keyed by name: the main one plus sidecars.
+
+    The main container has no name of its own in a stack file, so it is keyed
+    `""` — a sidecar cannot collide with that.
+    """
+    if not isinstance(service, dict):
+        return {}
+    out: dict[str, Any] = {"": service}
+    for side in service.get("sidecars") or []:
+        if isinstance(side, dict) and side.get("name"):
+            out[str(side["name"])] = side
+    return out
+
+
+def _input_of(value: Any) -> str | None:
+    """The input name when a value is exactly one `${input:…}`, else None."""
+    text = str(value).strip()
+    if not text.startswith(INPUT_TOKEN) or not text.endswith("}"):
+        return None
+    return text[len(INPUT_TOKEN):-1].strip() or None
+
+
 def _parameterized(value: Any) -> bool:
     return INPUT_TOKEN in str(value)
 
@@ -188,6 +211,58 @@ def check(
                         f"{where}: env {key} disagrees — "
                         f"fragment {frag_env[key]!r}, repo {own_env[key]!r}"
                     )
+
+            # ── a per-container value cannot be a single input ────────────────
+            #
+            # This is the check the hook was missing, and it is not the same as
+            # comparing values: the fragment's side is `${input:…}`, which the
+            # comparison above deliberately skips as un-driftable.
+            #
+            # The failure it catches: ONE input used for a key across SEVERAL
+            # containers, where the repo's own definition gives those containers
+            # DIFFERENT values. understudy shipped exactly that — seven sidecars
+            # each running one plugin, all collapsed onto
+            # `UNDERSTUDY_PLUGINS: ${input:understudyPlugins}`, so every
+            # container came up as `universe` and the five that lost the race to
+            # bind port 8090 never went Ready. Nothing crashed; it read as a slow
+            # boot.
+            frag_containers, own_containers = _containers(frag_body), _containers(own_body)
+            by_input: dict[tuple[str, str], list[str]] = {}
+            for cname, cbody in frag_containers.items():
+                for key, value in _env(cbody).items():
+                    name = _input_of(value)
+                    if name and key not in ignore:
+                        by_input.setdefault((key, name), []).append(cname)
+            for (key, input_name), names in sorted(by_input.items()):
+                if len(names) < 2:
+                    continue
+                distinct = {
+                    str(_env(own_containers[n]).get(key))
+                    for n in names
+                    if n in own_containers and key in _env(own_containers[n])
+                }
+                if len(distinct) > 1:
+                    where_c = ", ".join(n or "<main>" for n in sorted(names))
+                    failures.append(
+                        f"{where}: env {key} is one input (${{input:{input_name}}}) across "
+                        f"{len(names)} containers ({where_c}), but this repo gives them "
+                        f"{len(distinct)} different values ({', '.join(sorted(distinct))}) — "
+                        f"a per-container value cannot be represented by a single input"
+                    )
+
+            # ── sidecar env, compared the same way as the service's ───────────
+            for cname in sorted(set(frag_containers) & set(own_containers)):
+                if not cname:
+                    continue  # the main container is compared above
+                f_env, o_env = _env(frag_containers[cname]), _env(own_containers[cname])
+                for key in sorted(set(f_env) & set(o_env)):
+                    if key in ignore or _parameterized(f_env[key]):
+                        continue
+                    if _as_env(f_env[key]) != _as_env(o_env[key]):
+                        failures.append(
+                            f"{where}: sidecar {cname} env {key} disagrees — "
+                            f"fragment {f_env[key]!r}, repo {o_env[key]!r}"
+                        )
 
             if not report_one_sided:
                 continue
