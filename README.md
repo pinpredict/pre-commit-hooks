@@ -13,7 +13,7 @@ repos.
 | `service-yaml-check` | Static checks for new/changed `.platform/services/<svc>.yaml` files: chart path resolves, ECR repo / PIA / GHA push-role exist in TF, networkPolicy ingress ports match the chart's declared health port. Catches the post-merge failure modes from [platform-gitops#544](https://github.com/pinpredict/platform-gitops/issues/544). | `.platform/services/*.yaml` |
 | `stevedore-release-scope` | Assert that onboarding or retiring a service does not widen the shared image build contract: named services pair an `.stevedore.yaml` image id with a name-matching sibling chart, `docker-release` and `chart-release` receive the same `only:` selector, and `change_detection.shared_paths` carries the all-image signal without listing paths every onboarding touches. | `.stevedore.yaml`, `.github/workflows/ci.yml`, `charts/*/Chart.yaml` |
 | `no-production-newtonsoft` | Reject Newtonsoft.Json references in production .NET sources: a case-insensitive scan of every tracked source and build file, permitted only under the `--allow-prefix` paths (the approved test/benchmark projects) and on the one central `PackageVersion` line. Static half only — the transitive package-graph half needs `dotnet restore` and stays in the consumer's CI. | every commit (whole-tree scan) |
-| `check-go-version-sync` | Fails when a `go.mod` `go` directive and the governing `.tool-versions` `golang` pin drift apart. | `go.mod`, `.tool-versions` |
+| `check-go-version-sync` | Enforces one Go toolchain pin per repo that every module respects: a `golang` pin outside the repo root is an error, a repo with any `go.mod` must carry a root pin, and every `go.mod` `go` directive must equal it. | `go.mod`, `.tool-versions` |
 | `k5s-stack-namespaces` | Fails when two sibling k5s stack overlays declare the same `namespace:`. A new lane is usually a copy of an existing one, and a namespace left unchanged makes `k5s up` server-side-apply over the other lane's objects with no error — Ready pods running a blend of two lanes' config. Asserts uniqueness only, never a naming convention. | `k5s.yaml`, `komp.yaml`, `overlays/*.yaml` |
 | `alert-annotation-shape` | Guard the Slack-rendering traps in PrometheusRule annotations: a missing or interpolated `title` (Alertmanager falls back to the raw alertname once two alerts group), an over-long title, a literal-block `description` (Slack keeps the newlines, so the card arrives as ragged half-lines), a paragraph starting with `>` (parsed as a blockquote), and an elapsed time rendered as raw seconds. Every one is valid YAML that renders fine and fails only in Slack. Each check is disablable with `--skip <id>`. | `charts/**/*.yaml` |
 
@@ -29,12 +29,48 @@ repos:
       - id: check-go-version-sync
 ```
 
-**Current release: `v0.6.0`.** Pin an explicit tag rather than a branch;
+**Current release: `v0.8.0`.** Pin an explicit tag rather than a branch;
 `pre-commit autoupdate` rewrites the `rev:` to the latest tag when you want to
 move.
 
 Each hook's parameters (`files`, `args`, etc.) can be overridden in the
 consumer's config the same way as for any third-party hook repo.
+
+### `check-go-version-sync`
+
+The Go toolchain pin is **one per repo, in the root `.tool-versions`**, and
+every module must match it:
+
+```
+.tool-versions            golang 1.26.6     <- the only legal place
+apps/backend-go/go.mod    go 1.26.6
+apps/scribe/go.mod        go 1.26.6
+chaos/go.mod              go 1.26.6
+```
+
+Three things fail the hook: a `golang` line anywhere but the root, a repo that
+has a `go.mod` but no root pin, and any module whose `go` directive differs from
+the root pin. A nested `.tool-versions` that pins *other* tools
+(`golangci-lint`, `nodejs`) is fine — only `golang` is restricted.
+
+**Why root-only.** It used to resolve each module against its nearest ancestor
+`.tool-versions` and skip modules that had none. Both halves let drift through
+silently. In trader-tools the only pin sat in `apps/backend-go/`, which is not
+an ancestor of `apps/scribe/` or `chaos/` — so 2 of 3 modules were checked by
+nothing while the hook exited 0. And per-module pins are separate files that
+have to be edited together with nothing requiring it; one pin per repo cannot
+disagree with itself.
+
+There is **deliberately no opt-out flag**. An escape hatch is exactly what would
+let the stale per-module pin back in; a module that genuinely needs a different
+toolchain needs a different repo.
+
+⚠️ **The root pin has one known cost, and it is a documentation matter rather
+than a reason to nest.** A root `golang` line repoints asdf's shims for every
+go-installed tool at that version's GOPATH, so on a box where a tool like
+`pre-commit` was itself installed through asdf's Go plugin it can stop
+resolving. Install those tools through pipx/uvx/brew instead of asdf's Go
+plugin, or `asdf reshim` after changing the pin.
 
 ### `csharpier-worktree-guard`
 

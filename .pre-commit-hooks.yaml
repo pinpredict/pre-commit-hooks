@@ -56,13 +56,16 @@
   always_run: true
 
 - id: check-go-version-sync
-  name: check go version sync (go.mod ↔ .tool-versions)
+  name: check go version sync (one root golang pin, every module respects it)
   description: |
-    Fails when a go.mod `go` directive and the governing .tool-versions
-    `golang` pin drift apart (they must match so local asdf and CI build the
-    same toolchain). The governing pin for each module is the nearest
-    ancestor .tool-versions with a golang line; modules without one are
-    skipped. Nested modules (apps/<svc>/go.mod) are supported. Replaces the
+    Enforces ONE Go toolchain pin per repo, in the root .tool-versions, that
+    every module matches: a `golang` pin anywhere but the repo root is an
+    error, a repo containing a go.mod must carry a root pin, and every
+    go.mod's `go` directive must equal it. Previously it resolved each module
+    against its NEAREST ANCESTOR pin and skipped modules that had none, so a
+    pin one directory down left sibling modules unguarded while the hook
+    reported success (2 of 3 modules in trader-tools), and per-module pins
+    could drift independently. There is deliberately no opt-out. Replaces the
     per-repo scripts/check-go-version-sync.sh.
   entry: hooks/check-go-version-sync.sh
   language: script
