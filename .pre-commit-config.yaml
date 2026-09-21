@@ -15,7 +15,11 @@ repos:
         language: python
         additional_dependencies: ["PyYAML>=6"]
         pass_filenames: false
-        files: ^(pinpredict_hooks/|tests/|pyproject\.toml$)
+        # `hooks/` is in here because the SHELL hooks have tests now too
+        # (tests/test_check_go_version_sync.py). Without it, editing a .sh
+        # hook ran no tests locally — the same gap this file's comment above
+        # describes for CI-only coverage.
+        files: ^(pinpredict_hooks/|hooks/|tests/|pyproject\.toml$)
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
