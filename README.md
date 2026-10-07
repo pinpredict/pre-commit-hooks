@@ -16,6 +16,7 @@ repos.
 | `check-go-version-sync` | Enforces one Go toolchain pin per repo that every module respects: a `golang` pin outside the repo root is an error, a repo with any `go.mod` must carry a root pin, and every `go.mod` `go` directive must equal it. | `go.mod`, `.tool-versions` |
 | `k5s-stack-namespaces` | Fails when two sibling k5s stack overlays declare the same `namespace:`. A new lane is usually a copy of an existing one, and a namespace left unchanged makes `k5s up` server-side-apply over the other lane's objects with no error — Ready pods running a blend of two lanes' config. Asserts uniqueness only, never a naming convention. | `k5s.yaml`, `komp.yaml`, `overlays/*.yaml` |
 | `alert-annotation-shape` | Guard the Slack-rendering traps in PrometheusRule annotations: a missing or interpolated `title` (Alertmanager falls back to the raw alertname once two alerts group), an over-long title, a literal-block `description` (Slack keeps the newlines, so the card arrives as ragged half-lines), a paragraph starting with `>` (parsed as a blockquote), and an elapsed time rendered as raw seconds. Every one is valid YAML that renders fine and fails only in Slack. Each check is disablable with `--skip <id>`. | `charts/**/*.yaml` |
+| `kafka-topic-names` | Every Kafka topic named in a service spec (`provisionTopics[].name` and the five topic-grant arrays) must follow `pinpredict.<domain>.<subject>[.<subject>].<kind>.v<n>` from platform-gitops [`kafka-topic-naming.md`](https://github.com/pinpredict/platform-gitops/blob/main/docs/design/kafka-topic-naming.md), or be grandfathered in `pinpredict_hooks/kafka_legacy_topics.py`. | `.platform/services/*.yaml` |
 
 ## Using a hook
 
@@ -29,7 +30,7 @@ repos:
       - id: check-go-version-sync
 ```
 
-**Current release: `v0.8.0`.** Pin an explicit tag rather than a branch;
+**Current release: `v0.9.0`.** Pin an explicit tag rather than a branch;
 `pre-commit autoupdate` rewrites the `rev:` to the latest tag when you want to
 move.
 
@@ -250,6 +251,40 @@ Shell hooks stay in `hooks/` with `language: script`; they need no packaging.
    work so the suite stays fast enough to run as a hook itself.
 4. Update this README's "Available hooks" table.
 5. Open a PR. After merge, cut a tag.
+
+## `kafka-topic-names`
+
+```yaml
+    hooks:
+      - id: kafka-topic-names
+```
+
+No args. It checks every topic name in the staged `.platform/services/*.yaml`
+files against the convention: 4-6 dot segments, the literal `pinpredict`, a
+domain from the closed registry, an optional kind from the closed five
+(`events`, `commands`, `state`, `snapshot`, `log`), a mandatory `v<n>`, and
+lowercase with `-` inside a segment and never `_`. Prefix grants
+(`pinpredict.mag.*`) are allowed in grant arrays and refused in
+`provisionTopics`. Infra internals are `__<tool>-<purpose>`.
+
+**Why a hook and not the schema pattern.** The convention was written on
+2026-08-04 and enforced nowhere. By 2026-10-07, 13 non-conforming names had
+been added to service specs after it existed, 8 of them new venue postings
+copying the `pp-<venue>-*-gw-{commands,signals}` shape. The design doc's own
+plan tightens `.platform/services/.schema.json`, but those copies are vendored
+per repo in four versions and validate in three repos. The chart-side schema
+also reaches prd on merge. One shared hook is one implementation that every
+repo picks up with a `rev:` bump.
+
+**`kafka_legacy_topics.py` only shrinks.** It holds the inventory's
+non-conforming names plus the 13 found live on 2026-10-07. A name leaves when
+a rename removes its last reference. Adding a new name to get a topic past
+the hook defeats the hook; rename the topic instead. There is deliberately no
+`--allow` arg, for the same reason `check-go-version-sync` has no opt-out.
+
+It was verified against all 49 specs on every repo's `origin/main` on
+2026-10-07: clean with the list as shipped, and with the 13 post-convention
+names removed it flags exactly those 13.
 
 ## `stevedore-release-scope`
 
