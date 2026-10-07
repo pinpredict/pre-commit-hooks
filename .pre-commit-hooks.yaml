@@ -136,3 +136,17 @@
   # It is cheap to run unconditionally: a repo publishing no fragment returns
   # immediately without reading anything else.
   always_run: true
+
+- id: kafka-topic-names
+  name: Kafka topic names follow the org convention
+  description: |
+    Every topic in a .platform/services/<svc>.yaml (provisionTopics[].name and
+    the topics/readTopics/writeTopics/adminTopics/configReadTopics grants,
+    wherever they sit) must match
+    `pinpredict.<domain>.<subject>[.<subject>].<kind>.v<n>` from
+    platform-gitops docs/design/kafka-topic-naming.md, or be a grandfathered
+    name in pinpredict_hooks/kafka_legacy_topics.py. That list only shrinks.
+    groups and transactionalIds are not topics and are not checked.
+  entry: kafka-topic-names
+  language: python
+  files: '^\.platform/services/[^/]+\.yaml$'
