@@ -39,6 +39,14 @@ class GrammarTest(unittest.TestCase):
         ):
             self.assertTrue(ok(name), name)
 
+    def test_dkex_is_a_venue_domain(self) -> None:
+        for name in (
+            "pinpredict.dkex.oe.commands.v1",
+            "pinpredict.dkex.oe.events.v1",
+            "pinpredict.dkex.dropcopy.events.v1",
+        ):
+            self.assertTrue(ok(name), name)
+
     def test_the_shapes_that_kept_arriving_after_the_convention_fail(self) -> None:
         # Not legacy-listed variants of the real drift, so the grammar decides.
         for name in (

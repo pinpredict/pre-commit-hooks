@@ -58,8 +58,8 @@ PROVISION_KEY = "provisionTopics"
 DOMAINS = frozenset(
     {
         "oms", "trades", "rfq", "parlay", "controls", "fixtures", "md", "venue",
-        "nadex", "kalshi", "rothera", "polymarket", "pinnacle", "dis", "mag",
-        "gamestate", "tt",
+        "nadex", "kalshi", "rothera", "polymarket", "dkex", "pinnacle", "dis",
+        "mag", "gamestate", "tt",
     }
 )
 KINDS = frozenset({"events", "commands", "state", "snapshot", "log"})
