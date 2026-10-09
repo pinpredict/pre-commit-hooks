@@ -30,7 +30,7 @@ repos:
       - id: check-go-version-sync
 ```
 
-**Current release: `v0.10.0`.** Pin an explicit tag rather than a branch;
+**Current release: `v0.11.0`.** Pin an explicit tag rather than a branch;
 `pre-commit autoupdate` rewrites the `rev:` to the latest tag when you want to
 move.
 
@@ -277,8 +277,9 @@ also reaches prd on merge. One shared hook is one implementation that every
 repo picks up with a `rev:` bump.
 
 **`kafka_legacy_topics.py` only shrinks.** It holds the inventory's
-non-conforming names plus the 13 found live on 2026-10-07. A name leaves when
-a rename removes its last reference. Adding a new name to get a topic past
+non-conforming names plus the 13 found live on 2026-10-07, 9 of which remain
+(`pp-rothera-md-trades` and the three `pp-dkex-*` names have since left). A
+name leaves when a rename removes its last reference. Adding a new name to get a topic past
 the hook defeats the hook; rename the topic instead. There is deliberately no
 `--allow` arg, for the same reason `check-go-version-sync` has no opt-out.
 
