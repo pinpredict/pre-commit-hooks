@@ -97,7 +97,5 @@ LEGACY_TOPICS = frozenset(
         "pp-kalshi-fix-gw-signals",
         "pp-kalshi-md-book-shadow",
         "pp-rfq-fills",
-        "pp-sxbet-rest-gw-commands",
-        "pp-sxbet-rest-gw-signals",
     }
 )
