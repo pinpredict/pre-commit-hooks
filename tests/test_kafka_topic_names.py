@@ -47,6 +47,13 @@ class GrammarTest(unittest.TestCase):
         ):
             self.assertTrue(ok(name), name)
 
+    def test_sxbet_is_a_venue_domain(self) -> None:
+        for name in (
+            "pinpredict.sxbet.oe.commands.v1",
+            "pinpredict.sxbet.oe.events.v1",
+        ):
+            self.assertTrue(ok(name), name)
+
     def test_the_shapes_that_kept_arriving_after_the_convention_fail(self) -> None:
         # Not legacy-listed variants of the real drift, so the grammar decides.
         for name in (
