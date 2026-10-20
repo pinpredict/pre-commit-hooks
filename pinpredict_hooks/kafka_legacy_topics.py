@@ -25,7 +25,6 @@ LEGACY_TOPICS = frozenset(
         "_mm2-trades-status",
         "cdna-drop-copy",
         "cdna-trade-capture",
-        "oms-intents",
         "oms-seq-log",
         "oms-seq-snapshot",
         "oms-seq-statehash",
