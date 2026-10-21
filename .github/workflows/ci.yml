@@ -103,10 +103,15 @@ jobs:
           mkdir -p "$fixture/Acme.Api"
           printf 'using System.Text.Json;\n' > "$fixture/Acme.Api/Program.cs"
 
+          # A .go file and no go.mod: go-mod-download-worktree-safe then runs
+          # its script (proving the manifest entry resolves) and finds no module
+          # to download, so the job needs neither Go nor the network.
+          printf 'package main\n' > "$fixture/main.go"
+
           git -c init.defaultBranch=main init -q --template= "$fixture"
           git -C "$fixture" add -A
 
-          for hook in stevedore-release-scope service-yaml-check no-production-newtonsoft k5s-stack-namespaces; do
+          for hook in stevedore-release-scope service-yaml-check no-production-newtonsoft k5s-stack-namespaces go-mod-download-worktree-safe; do
             echo "::group::try-repo $hook"
             (cd "$fixture" && pre-commit try-repo "$GITHUB_WORKSPACE" "$hook" --all-files)
             echo "::endgroup::"

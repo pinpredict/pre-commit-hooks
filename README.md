@@ -14,6 +14,7 @@ repos.
 | `stevedore-release-scope` | Assert that onboarding or retiring a service does not widen the shared image build contract: named services pair an `.stevedore.yaml` image id with a name-matching sibling chart, `docker-release` and `chart-release` receive the same `only:` selector, and `change_detection.shared_paths` carries the all-image signal without listing paths every onboarding touches. | `.stevedore.yaml`, `.github/workflows/ci.yml`, `charts/*/Chart.yaml` |
 | `no-production-newtonsoft` | Reject Newtonsoft.Json references in production .NET sources: a case-insensitive scan of every tracked source and build file, permitted only under the `--allow-prefix` paths (the approved test/benchmark projects) and on the one central `PackageVersion` line. Static half only — the transitive package-graph half needs `dotnet restore` and stays in the consumer's CI. | every commit (whole-tree scan) |
 | `check-go-version-sync` | Enforces one Go toolchain pin per repo that every module respects: a `golang` pin outside the repo root is an error, a repo with any `go.mod` must carry a root pin, and every `go.mod` `go` directive must equal it. | `go.mod`, `.tool-versions` |
+| `go-mod-download-worktree-safe` | Run `go mod download` in every module with git's repository variables cleared, ahead of the Go hooks. A commit from a linked worktree exports `GIT_DIR` to its hooks, and Go's first git fetch of a private module runs a `git init --bare` that inherits it, which turns the primary checkout bare (`core.bare = true`). List it before `go-mod-tidy` and `golangci-lint`. | `*.go`, `go.mod`, `go.sum` |
 | `k5s-stack-namespaces` | Fails when two sibling k5s stack overlays declare the same `namespace:`. A new lane is usually a copy of an existing one, and a namespace left unchanged makes `k5s up` server-side-apply over the other lane's objects with no error — Ready pods running a blend of two lanes' config. Asserts uniqueness only, never a naming convention. | `k5s.yaml`, `komp.yaml`, `overlays/*.yaml` |
 | `alert-annotation-shape` | Guard the Slack-rendering traps in PrometheusRule annotations: a missing or interpolated `title` (Alertmanager falls back to the raw alertname once two alerts group), an over-long title, a literal-block `description` (Slack keeps the newlines, so the card arrives as ragged half-lines), a paragraph starting with `>` (parsed as a blockquote), and an elapsed time rendered as raw seconds. Every one is valid YAML that renders fine and fails only in Slack. Each check is disablable with `--skip <id>`. | `charts/**/*.yaml` |
 | `kafka-topic-names` | Every Kafka topic named in a service spec (`provisionTopics[].name` and the five topic-grant arrays) must follow `pinpredict.<domain>.<subject>[.<subject>].<kind>.v<n>` from platform-gitops [`kafka-topic-naming.md`](https://github.com/pinpredict/platform-gitops/blob/main/docs/design/kafka-topic-naming.md), or be grandfathered in `pinpredict_hooks/kafka_legacy_topics.py`. | `.platform/services/*.yaml` |
@@ -30,7 +31,7 @@ repos:
       - id: check-go-version-sync
 ```
 
-**Current release: `v0.14.0`.** Pin an explicit tag rather than a branch;
+**Current release: `v0.15.0`.** Pin an explicit tag rather than a branch;
 `pre-commit autoupdate` rewrites the `rev:` to the latest tag when you want to
 move.
 
@@ -72,6 +73,51 @@ go-installed tool at that version's GOPATH, so on a box where a tool like
 `pre-commit` was itself installed through asdf's Go plugin it can stop
 resolving. Install those tools through pipx/uvx/brew instead of asdf's Go
 plugin, or `asdf reshim` after changing the pin.
+
+### `go-mod-download-worktree-safe`
+
+List it **before** the Go hooks (`go-mod-tidy`, `golangci-lint`): pre-commit
+runs hooks in config order, so give it its own `repo:` block if this repo's
+block sits after them.
+
+```yaml
+- repo: https://github.com/pinpredict/pre-commit-hooks
+  rev: v0.15.0
+  hooks:
+    - id: go-mod-download-worktree-safe
+      # only for a module that cannot download anywhere
+      args: [--exclude, apps/svc/bench/chaos]
+```
+
+**What it prevents.** A commit made in a linked worktree runs its hooks with
+`GIT_DIR=<repo>/.git/worktrees/<name>` exported. When a Go hook is the first
+thing to fetch a module over git (a private module, under `GOPRIVATE`), Go
+starts with `git init --bare` in its module cache, and that one command
+inherits `GIT_DIR`. git re-initializes the repository being committed to and
+writes `core.bare = true` into the shared `.git/config`. Worktrees ignore the
+key, so nothing looks wrong where the commit ran; the primary checkout's
+`git status` fails with `fatal: this operation must be run in a work tree`, and
+the Go hook fails with a misleading
+
+```
+git remote add origin -- https://github.com/<org>/<module> in <GOMODCACHE>/cache/vcs/<hash>: exit status 128:
+fatal: not a git repository: '<GOMODCACHE>/cache/vcs/<hash>'
+```
+
+It broke magellan's primary checkout on 2026-10-20. To recover, run
+`git -C <primary checkout> config core.bare false`.
+
+This hook downloads the modules first, with git's repo-local variables cleared
+(all but `GIT_CONFIG*`, which carries the `insteadOf` rewrite a private module
+may need). Once a module's cache repository exists, Go addresses it by an
+explicit `GIT_DIR`, so the hooks after this one are safe. A failed download
+stops the run (`fail_fast`). Each module downloads in module mode
+(`GOWORK=off`), the way `go mod tidy` sees it, and a warm cache costs tens of
+milliseconds per module.
+
+The bug is in Go itself (`newGitRepo` in
+`src/cmd/go/internal/modfetch/codehost/git.go`). Drop this hook once a Go
+release fixes it and the repo's pin is past that release.
 
 ### `csharpier-worktree-guard`
 
