@@ -72,6 +72,28 @@
   files: '(^|/)go\.mod$|(^|/)\.tool-versions$'
   pass_filenames: false
 
+- id: go-mod-download-worktree-safe
+  name: go mod download (worktree-safe)
+  description: |
+    Run `go mod download` in every module with git's repository variables
+    cleared, ahead of the Go hooks. A commit from a linked worktree exports
+    GIT_DIR to its hooks, and Go's first git fetch of a module (a private one,
+    under GOPRIVATE) starts with a `git init --bare` that inherits it: git
+    re-initializes the repository being committed to and writes
+    `core.bare = true` into the shared .git/config, so the primary checkout
+    stops being a work tree. With the modules already downloaded, no hook after
+    this one makes that first fetch. List it BEFORE go-mod-tidy and
+    golangci-lint; `--exclude <dir>` skips a module that cannot download
+    anywhere.
+  entry: hooks/go-mod-download-worktree-safe.sh
+  language: script
+  files: '\.go$|(^|/)go\.(mod|sum)$'
+  pass_filenames: false
+  require_serial: true
+  # Stop the run when the download fails, rather than hand the same fetch to
+  # the Go hooks after this one, which would make it from inside the commit.
+  fail_fast: true
+
 - id: k5s-stack-namespaces
   name: k5s stack overlays declare unique namespaces
   description: |
