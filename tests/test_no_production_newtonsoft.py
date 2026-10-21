@@ -14,11 +14,13 @@ milliseconds, so the suite still runs as a hook in this repo.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -31,6 +33,28 @@ from pinpredict_hooks.no_production_newtonsoft import (  # noqa: E402
 ALLOWED = ("Acme.Tests/", "Acme.Benchmarks/")
 CENTRAL = "Directory.Packages.props"
 PATTERN = central_version_pattern("Newtonsoft.Json")
+
+# Every git command in this module runs with the caller's GIT_* variables
+# cleared. This suite is also this repo's own pre-commit hook, and a commit
+# from a linked worktree exports GIT_DIR and GIT_INDEX_FILE to it. Inherited,
+# they point the temp repo's git commands at THIS repository: `git init`
+# re-initializes it and sets core.bare = true (git guesses bare from a GIT_DIR
+# that does not end in /.git), `git add -A` replaces the worktree's index with
+# the temp repo's files, and the hook's own `git ls-files` lists this
+# repository instead of the temp one. Seen on 2026-10-21.
+_CLEAN_GIT_ENV = mock.patch.dict(
+    os.environ,
+    {k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
+    clear=True,
+)
+
+
+def setUpModule() -> None:
+    _CLEAN_GIT_ENV.start()
+
+
+def tearDownModule() -> None:
+    _CLEAN_GIT_ENV.stop()
 
 
 class Repo:
