@@ -31,7 +31,7 @@ repos:
       - id: check-go-version-sync
 ```
 
-**Current release: `v0.14.0`.** Pin an explicit tag rather than a branch;
+**Current release: `v0.15.0`.** Pin an explicit tag rather than a branch;
 `pre-commit autoupdate` rewrites the `rev:` to the latest tag when you want to
 move.
 
