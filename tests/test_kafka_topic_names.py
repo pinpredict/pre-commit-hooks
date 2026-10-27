@@ -65,6 +65,20 @@ class GrammarTest(unittest.TestCase):
         # own abbreviation is not a second domain for the same venue.
         self.assertFalse(ok("pinpredict.udx.oe.commands.v1"))
 
+    def test_polymarketus_is_a_venue_domain_apart_from_polymarket(self) -> None:
+        # Polymarket US is the INSTITUTIONAL exchange (FIX order entry, polymarketexchange.com),
+        # a different venue from the retail `polymarket` whose market data already lives under
+        # that domain. Its OMS enum member is `PolymarketUS` and its registry key segment
+        # `polymarketus`, so its topics are a domain of their own rather than a subject under
+        # `polymarket`, and the future market-data gateway lands beside them.
+        for name in (
+            "pinpredict.polymarketus.oe.commands.v1",
+            "pinpredict.polymarketus.oe.events.v1",
+            "pinpredict.polymarketus.md.book.state.v1",
+        ):
+            self.assertTrue(ok(name), name)
+        self.assertFalse(ok("pinpredict.pmx.oe.commands.v1"))
+
     def test_the_shapes_that_kept_arriving_after_the_convention_fail(self) -> None:
         # Not legacy-listed variants of the real drift, so the grammar decides.
         for name in (
