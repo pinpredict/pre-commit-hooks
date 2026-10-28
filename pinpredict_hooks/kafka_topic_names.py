@@ -58,7 +58,8 @@ PROVISION_KEY = "provisionTopics"
 DOMAINS = frozenset(
     {
         "oms", "trades", "rfq", "parlay", "controls", "fixtures", "md", "venue",
-        "nadex", "kalshi", "rothera", "polymarket", "dkex", "sxbet", "underdog",
+        "nadex", "kalshi", "rothera", "polymarket", "polymarketus", "dkex", "sxbet",
+        "underdog",
         "pinnacle", "dis", "mag", "gamestate", "tt",
     }
 )
