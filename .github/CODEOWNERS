@@ -1,0 +1,22 @@
+# CODEOWNERS — automatic reviewer assignment for pinpredict/pre-commit-hooks
+#
+# Without this file nothing requests a reviewer, so every review has to be
+# asked for by hand. GitHub's scheduled reminders also key off review requests.
+#
+# Syntax: last matching pattern wins; listing several owners requests all of
+# them. GitHub never requests review from the PR's own author, so an owner who
+# opens a PR simply drops out of that one. Last-match-wins is per FILE: a PR
+# that touches two areas requests both lists.
+#
+# Owners are individual GitHub handles, never org teams. Every area has at
+# least two, so nothing blocks on one person and a sole author's own PRs still
+# get a reviewer.
+#
+# Shared pre-commit hooks every repo pins by rev. A hook change lands in every
+# consumer on its next bump, so the platform pair reviews it. The Kafka topic
+# grandfather list (pinpredict_hooks/kafka_legacy_topics.py) only ever
+# shrinks; an addition to it is the thing this file exists to catch.
+#
+# Engineers: blairham (Blair), emersonboyd (Emerson).
+
+*                                   @blairham @emersonboyd
